@@ -11,6 +11,9 @@ from click_collector import (
 import rclpy
 from std_msgs.msg import Float32MultiArray
 
+# 좌표 변환 모듈 import
+from coordinatetr import Coordinate
+
 def main():
     # ROS 초기화 및 퍼블리셔 생성
     rclpy.init()
@@ -22,6 +25,9 @@ def main():
     cam = RealSenseManager()
     cv2.namedWindow("RealSense Color")
     setup_click_collector("RealSense Color")
+
+    # 좌표 변환 클래스 초기화
+    picker = Coordinate()
 
     print("RealSense 카메라가 켜졌습니다.")
     print("마우스 클릭: 포인트 추가")
@@ -46,17 +52,24 @@ def main():
         # SPACE: 클릭 좌표 리스트 발행 (한 번만)
         elif key == ord(' '):
             if not sent_space:
-                points = get_saved_points()  # 클릭 좌표 가져오기
+                points = get_saved_points()  # 클릭 픽셀 좌표 가져오기
+                world_points = []
 
-                # 2차원 좌표를 1차원 float 배열로 변환
-                flat_points = [float(coord) for point in points for coord in point]
+                # 픽셀 좌표를 월드 좌표로 변환
+                for u, v in points:
+                    Pw = picker.pixel_to_world(u, v, depth_frame)
+                    if Pw is not None:
+                        world_points.append([Pw[0], Pw[1], Pw[2]])
+
+                # 2차원 월드 좌표를 1차원 float 배열로 flatten
+                flat_points = [float(c) for p in world_points for c in p]
 
                 msg = Float32MultiArray()
                 msg.data = flat_points
                 pub.publish(msg)
 
                 sent_space = True
-                print(f"클릭 좌표 발행 완료 (한 번만): {points}")
+                print(f"월드 좌표 발행 완료: {world_points}")
 
         # t: 발행 리셋
         elif key == ord('t'):
