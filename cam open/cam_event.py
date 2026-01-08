@@ -1,14 +1,11 @@
 import cv2
 import numpy as np
-import os
 
 # 전역 변수
 depth_frame_global = None
 color_image_global = None
 current_points = []
 
-SAVE_DIR = "cam_save"
-os.makedirs(SAVE_DIR, exist_ok=True)
 
 # 마우스 클릭 콜백
 def mouse_callback(event, x, y, flags, param):
@@ -49,13 +46,10 @@ def Save_Cam():
 
     depth_image = np.asanyarray(depth_frame_global.get_data())
 
-    color_path = os.path.join(SAVE_DIR, "color.png")
-    depth_path = os.path.join(SAVE_DIR, "depth.npy")
+    cv2.imwrite("color.png", color_image_global)
+    np.save("depth.npy", depth_image)
 
-    cv2.imwrite(color_path, color_image_global)
-    np.save(depth_path, depth_image)
-
-    print(f"{color_path}, {depth_path} 저장 완료")
+    print("color.png, depth.npy 저장 완료")
 
 # 클릭 포인트 리셋
 def reset_points():
