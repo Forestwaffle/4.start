@@ -9,8 +9,6 @@ import numpy as np
 from publish_utils import publish_points_and_depth
 
 
-
-
 def main():
     # ROS 초기화
     rclpy.init()
