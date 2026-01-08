@@ -46,10 +46,10 @@ def Save_Cam():
 
     depth_image = np.asanyarray(depth_frame_global.get_data())
 
-    cv2.imwrite("color.png", color_image_global)
+    cv2.imwrite("color.jpg", color_image_global)
     np.save("depth.npy", depth_image)
 
-    print("color.png, depth.npy 저장 완료")
+    print("color.jpg, depth.npy 저장 완료")
 
 # 클릭 포인트 리셋
 def reset_points():

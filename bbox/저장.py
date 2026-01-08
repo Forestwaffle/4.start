@@ -33,7 +33,7 @@ try:
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('s'):
-            cv2.imwrite(f"{SAVE_DIR}/color.png", color)
+            cv2.imwrite(f"{SAVE_DIR}/color.jpg", color)
             np.save(f"{SAVE_DIR}/depth.npy", depth)
             print("✅ 저장 완료: color.png / depth.npy")
 

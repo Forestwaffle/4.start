@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from sklearn.cluster import DBSCAN
 
-COLOR_PATH = "color.png"
+COLOR_PATH = "color.jpg"
 DEPTH_PATH = "depth.npy"
 CALIB_PATH = "camcalib.npz"
 
