@@ -5,7 +5,6 @@ import rclpy
 from std_msgs.msg import Float32MultiArray
 from coordinatetr import Coordinate
 
-
 def main():
     # ROS 초기화
     rclpy.init()
@@ -43,13 +42,13 @@ def main():
 
         key = cv2.waitKey(1) & 0xFF
 
-        if key == ord('s'):
+        if key == ord('s'): #사진 저장
             Save_Cam()
 
-        elif key == ord('r'):
+        elif key == ord('r'): #리셋
             reset_points()
 
-        elif key == ord(' '):
+        elif key == ord(' '): #스페이스 토픽보내기
             if not sent_space:
                 world_points = []
 
@@ -67,17 +66,16 @@ def main():
                 sent_space = True
                 print(world_points)
 
-        elif key == ord('t'):
+        elif key == ord('t'): #토픽 횟수 초기화
             sent_space = False
 
-        elif key == 27:
+        elif key == 27: #esc
             break
 
     cam.stop()
     cv2.destroyAllWindows()
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
