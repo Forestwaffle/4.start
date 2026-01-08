@@ -1,5 +1,4 @@
 import cv2
-import json  # JSON 변환
 from realsense_manager import RealSenseManager
 from click_collector import (
     setup_click_collector,
@@ -10,13 +9,13 @@ from click_collector import (
 )
 
 import rclpy
-from std_msgs.msg import String
+from std_msgs.msg import Float32MultiArray
 
 def main():
     # ROS 초기화 및 퍼블리셔 생성
     rclpy.init()
     node = rclpy.create_node('garbage_sender')
-    pub = node.create_publisher(String, 'garbage_topic', 10)
+    pub = node.create_publisher(Float32MultiArray, 'garbage_topic', 10)
     sent_space = False  # space 한 번만 발행 제어
 
     # RealSense 초기화
@@ -48,9 +47,14 @@ def main():
         elif key == ord(' '):
             if not sent_space:
                 points = get_saved_points()  # 클릭 좌표 가져오기
-                msg = String()
-                msg.data = json.dumps(points)  # JSON 문자열로 변환
+
+                # 2차원 좌표를 1차원 float 배열로 변환
+                flat_points = [float(coord) for point in points for coord in point]
+
+                msg = Float32MultiArray()
+                msg.data = flat_points
                 pub.publish(msg)
+
                 sent_space = True
                 print(f"클릭 좌표 발행 완료 (한 번만): {points}")
 

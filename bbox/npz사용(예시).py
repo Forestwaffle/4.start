@@ -44,8 +44,7 @@ class RealsenseCoordinatePicker:
         for i in range(-2, 3):
             for j in range(-2, 3):
                 d = depth_frame.get_distance(u + i, v + j)
-                if d > 0: 
-                    depth_list.append(d)
+                if d > 0: depth_list.append(d)
         
         if not depth_list:
             return None
@@ -57,15 +56,19 @@ class RealsenseCoordinatePicker:
         fx, fy = self.camera_matrix[0, 0], self.camera_matrix[1, 1]
         cx, cy = self.camera_matrix[0, 2], self.camera_matrix[1, 2]
         
-        Xc = (u - cx) * depth_cm / fx
-        Yc = (v - cy) * depth_cm / fy
-        Zc = depth_cm - 1.4
+        Yc = (u - cx) * depth_cm / fx
+        Xc = (v - cy) * depth_cm / fy
+        Zc = depth_cm 
         
-        Pc = np.array([Xc, Yc, Zc, 1.0])  # 동차 좌표계 (Homogeneous)
+        Pc = np.array([Xc, Yc, Zc,1.0]) # 동차 좌표계 (Homogeneous)
 
         # 월드 좌표계 변환 (Pw = T * Pc)
+         
         Pw = self.T_cam_to_work @ Pc
-        return Pw[:3]
+        Pw[0] = -Pw[0] + 81 # x 방향  반전 + 81cm 보정
+        Pw[1] =  Pw[1] - 21  # Y 방향 -21 보정
+        Pw[2] = -Pw[2] + 1.5  # Z 방향 반전 + 1.5cm 보정
+        return Pw 
 
 if __name__ == "__main__":
     # 사용 예시
