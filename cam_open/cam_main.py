@@ -4,12 +4,20 @@ from cam_event import (setup_click_collector,update_depth_frame,update_color_ima
 import rclpy
 from std_msgs.msg import Float32MultiArray
 from coordinatetr import Coordinate
+from sensor_msgs.msg import Image
+import numpy as np
+from publish_utils import publish_points_and_depth
+
+
+
 
 def main():
     # ROS 초기화
     rclpy.init()
     node = rclpy.create_node('garbage_sender')
-    pub = node.create_publisher(Float32MultiArray, 'garbage_topic', 10)
+    point_pub = node.create_publisher(Float32MultiArray, 'garbage_topic', 10)
+    depth_pub = node.create_publisher(Image, 'realsense_depth_topic', 10)
+    color_pub = node.create_publisher(Image, "realsense_color_topic", 10)
     sent_space = False
 
     # RealSense 초기화
@@ -48,23 +56,10 @@ def main():
         elif key == ord('r'): #리셋
             reset_points()
 
-        elif key == ord(' '): #스페이스 토픽보내기
+        elif key == ord(' '):
             if not sent_space:
-                world_points = []
-
-                for x, y, _ in get_saved_points():
-                    Pw = picker.pixel_to_world(x, y, depth_frame)
-                    if Pw is not None:
-                        world_points.append([Pw[0], Pw[1], Pw[2]])
-
-                flat_points = [float(v) for p in world_points for v in p]
-
-                msg = Float32MultiArray()
-                msg.data = flat_points
-                pub.publish(msg)
-
+                publish_points_and_depth(picker, depth_frame, color_image, get_saved_points, point_pub, color_pub, depth_pub, node)
                 sent_space = True
-                print(world_points)
 
         elif key == ord('t'): #토픽 횟수 초기화
             sent_space = False
