@@ -13,7 +13,7 @@ class DepthDBSCANVisualizer:
         self.depth = np.load(DEPTH_PATH)
 
         if self.color is None or self.depth is None:
-            raise RuntimeError("❌ color.png 또는 depth.npy 로드 실패")
+            raise RuntimeError("❌ color.jpg 또는 depth.npy 로드 실패")
 
         calib = np.load(CALIB_PATH)
         self.T_cam_to_work = calib["T_cam_to_work"]
@@ -28,9 +28,13 @@ class DepthDBSCANVisualizer:
         self.Z_floor = -2.0
 
         # ROI (u1, v1, u2, v2)
-        self.roi = (488, 230, 790, 420)
+        self.roi = (480, 230, 790, 430)
 
-        print("✅ ROI + Depth + DBSCAN + Depth-discontinuity Transparent 준비 완료")
+        # 🔥 작은 초록 박스 제거 기준
+        self.MIN_GREEN_BOX_AREA = 250   # px^2
+        self.MIN_GREEN_BOX_EDGE = 30     # px
+
+        print("✅ ROI + Depth + DBSCAN + Small Green Box Filter Ready")
 
     # -------------------------------
     # Utils
@@ -71,13 +75,13 @@ class DepthDBSCANVisualizer:
                     points_2d.append([u, v])
                     points_world.append(Pw)
 
-        if len(points_world) == 0:
+        if not points_world:
             return []
 
         clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(points_world)
         labels = clustering.labels_
 
-        rotated_boxes = []
+        boxes = []
 
         for label in set(labels):
             if label == -1:
@@ -90,19 +94,25 @@ class DepthDBSCANVisualizer:
                 continue
 
             rect = cv2.minAreaRect(pixels)
-            box = cv2.boxPoints(rect)
-            box = box.astype(int)
-            rotated_boxes.append(box)
+            (w_rect, h_rect) = rect[1]
 
-        return rotated_boxes
+            # 🔥 너무 작은 초록 박스 제거
+            if w_rect * h_rect < self.MIN_GREEN_BOX_AREA:
+                continue
+            if min(w_rect, h_rect) < self.MIN_GREEN_BOX_EDGE:
+                continue
+
+            box = cv2.boxPoints(rect).astype(int)
+            boxes.append(box)
+
+        return boxes
 
     # -------------------------------
-    # RGB + Depth Discontinuity → Transparent
+    # RGB + Depth Discontinuity → Compact Transparent Box
     # -------------------------------
     def extract_transparent_rgb(self):
         gray = cv2.cvtColor(self.color, cv2.COLOR_BGR2GRAY)
 
-        # 1️⃣ Bright + Edge
         bright = cv2.adaptiveThreshold(
             gray, 255,
             cv2.ADAPTIVE_THRESH_MEAN_C,
@@ -116,17 +126,13 @@ class DepthDBSCANVisualizer:
 
         rgb_mask = cv2.bitwise_or(bright, edges)
 
-        # 2️⃣ Depth 불연속 영역 생성 (핵심)
         depth = self.depth.astype(np.float32)
         depth_blur = cv2.medianBlur(depth, 5)
-
-        grad = cv2.Laplacian(depth_blur, cv2.CV_32F)
-        grad_abs = np.abs(grad)
+        grad = np.abs(cv2.Laplacian(depth_blur, cv2.CV_32F))
 
         depth_hole = np.zeros_like(depth, dtype=np.uint8)
-        depth_hole[(depth == 0) | (grad_abs > 20)] = 255
+        depth_hole[(depth == 0) | (grad > 20)] = 255
 
-        # 3️⃣ 통합
         mask = cv2.bitwise_and(rgb_mask, depth_hole)
 
         # ROI 제한
@@ -135,9 +141,8 @@ class DepthDBSCANVisualizer:
         roi_mask[y1:y2, x1:x2] = 255
         mask = cv2.bitwise_and(mask, roi_mask)
 
-        # Morphology
-        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=2)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+        mask = cv2.erode(mask, np.ones((1, 1), np.uint8), iterations=1)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -145,10 +150,25 @@ class DepthDBSCANVisualizer:
         roi_area = (x2 - x1) * (y2 - y1)
 
         for cnt in contours:
-            if cv2.contourArea(cnt) < roi_area * 0.002:
+            area = cv2.contourArea(cnt)
+            if area < roi_area * 0.05:
                 continue
-            x, y, w, h = cv2.boundingRect(cnt)
-            boxes.append((x, y, x + w, y + h))
+
+            cnt_mask = np.zeros_like(mask)
+            cv2.drawContours(cnt_mask, [cnt], -1, 255, -1)
+
+            dist = cv2.distanceTransform(cnt_mask, cv2.DIST_L2, 5)
+            _, _, _, max_loc = cv2.minMaxLoc(dist)
+            cx, cy = max_loc
+
+            box_size = int(np.sqrt(area) * 0.6)
+
+            x1b = max(cx - box_size // 2, 0)
+            y1b = max(cy - box_size // 2, 0)
+            x2b = min(cx + box_size // 2, mask.shape[1])
+            y2b = min(cy + box_size // 2, mask.shape[0])
+
+            boxes.append((x1b, y1b, x2b, y2b))
 
         return boxes
 
@@ -171,7 +191,7 @@ class DepthDBSCANVisualizer:
         for bx1, by1, bx2, by2 in blue_boxes:
             cv2.rectangle(vis, (bx1, by1), (bx2, by2), (255, 0, 0), 2)
 
-        cv2.imshow("Depth Discontinuity Transparent Detection", vis)
+        cv2.imshow("Compact Transparent Detection", vis)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -179,7 +199,7 @@ class DepthDBSCANVisualizer:
 # -------------------------------
 # 초록 박스 내부 파랑 박스 제거
 # -------------------------------
-def suppress_blue_boxes(blue_boxes, green_rotated_boxes):
+def suppress_blue_boxes(blue_boxes, green_boxes):
     filtered = []
 
     for bx1, by1, bx2, by2 in blue_boxes:
@@ -187,7 +207,7 @@ def suppress_blue_boxes(blue_boxes, green_rotated_boxes):
         cy = (by1 + by2) // 2
 
         keep = True
-        for box in green_rotated_boxes:
+        for box in green_boxes:
             if cv2.pointPolygonTest(box, (cx, cy), False) >= 0:
                 keep = False
                 break

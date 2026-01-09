@@ -28,7 +28,7 @@ class DepthDBSCANVisualizer:
         self.Z_floor = -2.0
 
         # ROI (u1, v1, u2, v2)
-        self.roi = (460, 150, 830, 490)
+        self.roi = (473, 220, 800, 436)
 
         print("✅ ROI + Depth + DBSCAN(회전 박스) + Transparent 준비 완료")
 
