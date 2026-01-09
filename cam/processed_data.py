@@ -1,13 +1,12 @@
-import numpy as np
-import cv2
 import os
 import datetime
-import cam_event  # Save_Cam, reset_points 등 있는 파일
+import numpy as np
+import cv2
+import cam_event  # Save_Cam 있는 파일
 
 SAVE_FOLDER = "saved_data"
 os.makedirs(SAVE_FOLDER, exist_ok=True)
 
-# 전역 변수
 color_image = None
 depth_image = None
 points_3d = []
@@ -15,7 +14,6 @@ points_3d = []
 def save_cam():
     """
     Save_Cam 호출 + 파일 저장 + 모듈 변수 갱신
-    반환값도 그대로 리턴
     """
     global color_image, depth_image, points_3d
 
@@ -26,13 +24,12 @@ def save_cam():
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # 파일 저장
     if color is not None:
         cv2.imwrite(os.path.join(SAVE_FOLDER, f"color_{timestamp}.png"), color)
     if depth is not None:
         np.save(os.path.join(SAVE_FOLDER, f"depth_{timestamp}.npy"), depth)
     if points:
-        np.savez(os.path.join(SAVE_FOLDER, f"points3d_{timestamp}.npz"), points=np.array(points))
+        print(points)
 
-    print(f"스페이스바: color/depth/points 저장 완료 ({len(points)}점)")
+    print(f"스페이스바: color/depth/points 저장 완료")
     return color, depth, points
